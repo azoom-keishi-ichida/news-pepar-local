@@ -1,0 +1,28 @@
+---
+description: 日次トレンド収集時に参照するルール。トレンド、ネタ収集、daily trend の依頼で使う。
+globs: ideas/daily/**
+alwaysApply: false
+---
+
+# Daily Trend Collection
+
+<!--
+概要: Cursor Agent が日次トレンドを収集し Markdown を書き出すときの最短チェックリスト。
+主な仕様: 保存先パス、収集の優先手段、スキルへの委譲。
+制限事項: 詳細な URL 一覧・表テンプレートは `.agents/skills/neta-trend-daily/SKILL.md` を参照する。
+-->
+
+## 優先参照
+
+- 手順・URL・評価・出力テンプレの**詳細は** `.agents/skills/neta-trend-daily/SKILL.md` に従う。
+
+## 概要
+
+- 保存先: `ideas/daily/YYYY-MM-DD-trend.md`（対象日は JST 当日。ユーザー指定があればそれを優先）
+- 取得: まず `curl`、必要なら `WebFetch` を併用
+- 既存ファイルの上書き前にユーザーへ確認する
+
+## 制限事項
+
+- 秘密情報をファイルに書かない
+- 取得失敗は推測で埋めず、スキルに従い末尾注記とする

@@ -1,0 +1,6 @@
+.env
+.DS_Store
+
+# ideas/daily/ ディレクトリは残すが、中身（生成トレンド Markdown 等）は Git の対象外
+ideas/daily/*
+!ideas/daily/.gitkeep
