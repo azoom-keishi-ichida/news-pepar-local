@@ -31,6 +31,12 @@
 ```text
 今日のトレンドを収集して
 ```
+もしくは
+ワークフロー
+```text
+/daily-trend-workflow 
+```
+を実行
 
 3. `.cursor/rules/daily-trend.mdc` と `.agents/skills/neta-trend-daily/SKILL.md` に従い、`ideas/daily/YYYY-MM-DD-trend.md` を作成する
 
