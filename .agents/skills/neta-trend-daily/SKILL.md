@@ -1,47 +1,67 @@
 ---
 name: neta-trend-daily
-description: 技術トレンドの日次収集。トレンド、ネタ収集、daily trend、はてブ、Hacker News、Reddit の収集依頼で使う。
+description: 技術トレンドの日次収集（JST 対象日のスナップショットのみ）。トレンド、ネタ収集、daily trend、はてブ、Hacker News、Reddit の依頼で使う。
 ---
 
 <!--
-概要: はてブIT・Hacker News・セキュリティブログ・Reddit から技術トレンドを集め、発信ネタ向けに Markdown へ整形する手順を定義する。
-主な仕様: 収集元URL、取得項目、興味度・カテゴリ評価、Markdown の章立てと表形式を固定する。
-制限事項: サイト仕様変更・レート制限で取得できない場合がある。推測で数値やURLを埋めず、不足は本文末尾に注記する。
+概要: はてブIT・Hacker News・セキュリティブログ・Reddit から、JST の対象日（通常は当日）に相当する一覧だけを集め、発信ネタ向けのポップな Markdown に整形する。
+主な仕様: 当日スナップショット、収集元 URL、取得・評価ルール、出力 `ideas/daily/YYYY-MM-DD-trend.md`、章立てと表の列を固定する。
+制限事項: サイト仕様変更・レート制限で取得できないことがある。推測で数値・URL を埋めず、不足は本文末尾に注記する。取得キャッシュはリポジトリ内に置かない。
 -->
 
 # 日次トレンド収集（neta-trend-daily）
 
-## いつ使うか
+## 目的・いつ使うか
 
-- ユーザーが「今日のトレンド」「ネタ収集」「daily trend」など日次の技術トレンド整理を依頼したとき
-- `ideas/daily/YYYY-MM-DD-trend.md` を新規作成または更新するとき
+- 「今日のトレンド」「ネタ収集」「daily trend」など、**1 日分**の技術トレンド整理を依頼されたとき
+- `ideas/daily/YYYY-MM-DD-trend.md` を新規作成・更新するとき
 
-## 対象日と保存先
+## 用語と出力
 
-- **対象日**: 特に指定がなければ JST の当日（`TZ=Asia/Tokyo` で日付を解釈する）
-- **保存先**: `ideas/daily/YYYY-MM-DD-trend.md`（`YYYY-MM-DD` は対象日）
-- **既存ファイル**: 上書きする前にユーザーへ確認する
+| 用語 | 意味 |
+| --- | --- |
+| `targetDate` | 集計の基準日。未指定なら JST 当日（`TZ=Asia/Tokyo date +%F`） |
+| 当日スナップショット | その実行で各ソースが返す **「いまの一覧」** に相当するデータ。過去多日分をマージしない |
+| 保存先 | `ideas/daily/{targetDate}-trend.md` |
+
+- 既存ファイルを上書きする前にユーザーへ確認する
+
+## ソース別の取り方（スナップショット）
+
+| ソース | やること | やらないこと |
+| --- | --- | --- |
+| はてブ | 各ベース URL の **無印**ページを `curl`。`targetDate` が当日でないときだけ末尾に **`/YYYYMMDD` を 1 日分** 付与 | 過去 **複数日**のアーカイブをまとめて取得・マージしない |
+| Hacker News | `v0/topstories` + `v0/item` で一覧化 | `time` で長期ウィンドウを切らない（フロントに近いトップをその日のネタ源とする） |
+| Reddit | `hot.json` または `top.json?t=day` | `t=month` を大量取得してから日付だけ絞る方式は使わない（当日用途） |
+| Aikido / Wiz | 一覧 HTML の **先頭付近**を確認しメモ | — |
+
+出力 Markdown の先頭付近に必ず次を入れる（`今日のひとこと` の直後でよい）。
+
+```markdown
+> *収集日*: JST **YYYY-MM-DD**（当日スナップショット）
+```
 
 ## 優先する興味領域
 
 - AI（開発・セキュリティ応用）
-- Web セキュリティ / ハッキング（OWASP、脆弱性、サプライチェーン）
-- OSS / コミュニティ
-- 個人開発 / SaaS（Technical SEO、グロース、収益化）
-- キャリア / 人生哲学（経済的自由、外資、Build in Public）
+- Web セキュリティ / サプライチェーン
+- OSS / コミュニティ、個人開発 / SaaS
+- キャリア / 実践（含: 生産性・働き方）
 - JavaScript / TypeScript スタック
 
-## 収集手順
+## 実行手順（エージェント）
 
-1. はてブIT の人気エントリーを収集する
-2. Hacker News の人気記事を収集する
-3. Aikido と Wiz のブログを軽く確認する
-4. Reddit の指定サブレッドを収集する
-5. 興味領域との一致度を最優先で整理する
-6. 下記「出力 Markdown 構造」に沿った本文を生成する
-7. 可能な限り shell の `curl` で取得する（必要なら `WebFetch` を併用してよい）
+1. `targetDate` を決める
+2. 一時ディレクトリをリポジトリ外に作る: `OUT="$(mktemp -d /tmp/neta-trend.XXXXXX)"`（**`.neta-tmp-collect` をリポジトリ内に作らない**）。終了後 `rm -rf "$OUT"`
+3. はてブ: 下記ベース URL を `curl` → HTML パース。カテゴリが複数ある場合は **URL 単位でマージ**し、同一 URL のブクマ数は **最大**を採用
+4. HN: `topstories.json` と各 `item/<id>.json` を取得
+5. Aikido / Wiz: ブログ一覧を `curl`
+6. Reddit: 各サブレで `hot.json`（推奨）または `top.json?t=day&limit=10`
+7. 興味領域を最優先に並べ替え・要約する
+8. 次章「出力 Markdown 構造」に従い本文を生成し、`ideas/daily/{targetDate}-trend.md` に保存する
+9. 取得は原則 `curl`（必要なら `WebFetch`）。`jq` で JSON をパースしてよい
 
-## 収集元（URL）
+## 収集元 URL
 
 ### はてブIT
 
@@ -54,68 +74,89 @@ description: 技術トレンドの日次収集。トレンド、ネタ収集、d
 
 ### Hacker News
 
-- https://news.ycombinator.com/
+- 入口: https://news.ycombinator.com/
+- データ: Firebase `https://hacker-news.firebaseio.com/v0/topstories.json` と `v0/item/<id>.json`
 
 ### セキュリティブログ
 
 - https://www.aikido.dev/blog
 - https://www.wiz.io/blog
 
-### Reddit（サブレッド一覧）
+### Reddit（13 サブレ）
 
-- セキュリティ系: `r/netsec`, `r/cybersecurity`
-- AI 系: `r/OpenAI`, `r/LocalLLaMA`, `r/ClaudeCode`
-- コア技術系: `r/programming`, `r/technology`
-- OSS / 個人開発系: `r/opensource`, `r/indiehackers`, `r/webdev`, `r/javascript`
-- キャリア / 実践系: `r/cscareerquestions`, `r/productivity`
+| 分類 | サブレ |
+| --- | --- |
+| セキュリティ | `netsec`, `cybersecurity` |
+| AI | `OpenAI`, `LocalLLaMA`, `ClaudeCode` |
+| コア | `programming`, `technology` |
+| OSS / 個人開発 | `opensource`, `indiehackers`, `webdev`, `javascript` |
+| キャリア / 実践 | `cscareerquestions`, `productivity` |
 
-Reddit API 取得例（各サブレッド）:
+**取得 URL 例**（各サブレ）:
 
-- `https://old.reddit.com/r/<subreddit>/hot.json?t=day&limit=10`
-- User-Agent: `neta-trend-collector/1.0 (trend analysis tool)`
-- `curl` と `jq` を使ってパースする
+- `https://old.reddit.com/r/<name>/hot.json?t=day&limit=10`
+- `User-Agent: neta-trend-collector/1.0 (trend analysis tool)`
 
 ## 取得ルール
 
-- はてブ: タイトル、**元記事 URL**、ブックマーク数（はてブのpermalinkではなく記事URL）
-- Hacker News: タイトル、**日本語訳タイトル**（表示用）、`https://news.ycombinator.com/item?id=...` 形式のコメントページ URL、ポイント数
-- Reddit: タイトル、**日本語訳タイトル**、完全なコメント URL、投票数（ups）、コメント数、サブレッド名
-- すべてのエントリーに URL を含める
-- 取得できなかったソースは Markdown 本文の末尾に短い注記で列挙する
+- **はてブ**: タイトル、**元記事 URL**、ブックマーク数（permalink ではなく記事 URL）
+- **HN**: タイトル、**日本語見出し**（表示用）、`https://news.ycombinator.com/item?id=...`、**元記事 URL**（あれば）、ポイント
+- **Reddit**: タイトル、**日本語見出し**（表示用）、スレ URL、ups、コメント数、サブレ名
+- すべての行に URL を含める
+- 取得できなかったソースは本文末尾に短く列挙する
 
 ## 評価ルール
 
-- 興味領域との一致度を最優先する
-- 興味度: `★★★`（直接関係）、`★★`（間接）、`★`（一般的な技術ニュース）
-- カテゴリは次から選ぶ: `AI`, `Security`, `OSS`, `個人開発`, `キャリア`, `JavaScript/TypeScript`, `開発`, `Web`, `その他`
-- メモ列は「発信にどう使えるか」を短く書く
+- 上記「優先する興味領域」との一致を最優先する
+- **興味度**: `★★★` 直接 / `★★` 間接 / `★` 一般トレンド
+- **カテゴリ**（表ではバッククォート）: `AI` `Security` `OSS` `個人開発` `キャリア` `JavaScript/TypeScript` `開発` `Web` `その他`
+- **メモ列**: 発信ネタとしての使い道を一言
 
 ## 出力 Markdown 構造
 
-`ideas/daily/YYYY-MM-DD-trend.md` に書き出す本文は、次の章立て・表構造に従う。
+プレビュー向けに **絵文字見出し**、**`<details>` 折りたたみ**、**短いリンクテキスト** を使う。
 
-- 見出し: `# トレンドネタ: YYYY-MM-DD`
-- `## はてブIT（日本市場）` → `### 注目トピック`（表）→ `### 全エントリー`（番号付きリスト）
-- `## Hacker News（グローバル）` → 同様
-- `## Reddit（13サブレッド）` → `### 注目トピック`（表）→ `### カテゴリ別エントリー`（セキュリティ系 / AI系 / OSS・個人開発系 / キャリア・実践系）
+### 章の並び
 
-### 表の列（Markdown 表のヘッダ名と並び）
+1. `# 🗞️ トレンドネタ: YYYY-MM-DD`
+2. `> **今日のひとこと**` … 1〜2 文
+3. `> *収集日*: JST **YYYY-MM-DD**（当日スナップショット）`
+4. `---` → `## 🔥 今日のピックアップ 3選`（表）
+5. `---` → `## 🇯🇵 はてブIT` → `### ⭐ 注目トピック` → `<details><summary>📋 全エントリー</summary>` … 表
+6. `---` → `## 🌍 Hacker News` … 同様
+7. `---` → `## 💬 Reddit` → 注目表 → カテゴリ別 `<details>`（🛡️🤖💻🛠️🎯）
+8. `---` → `## 🔬 セキュリティブログ確認メモ`（blockquote）
 
-- はてブ「注目トピック」: `タイトル` | `ブクマ数` | `興味度` | `カテゴリ` | `メモ`
-- Hacker News「注目トピック」: `タイトル` | `ポイント` | `興味度` | `カテゴリ` | `メモ`
-- Reddit「注目トピック」: `タイトル` | `投票数` | `コメント数` | `興味度` | `カテゴリ` | `サブレッド` | `メモ`
+### 表の列
 
-## 出力チャネルの違い（参考）
+| ブロック | 列 |
+| --- | --- |
+| ピックアップ 3 選 | `#`, タイトル, ソース, 数値 |
+| はてブ 注目 | タイトル, 🔖, 興味度, カテゴリ, メモ |
+| はてブ 全件 | `#`, タイトル, 🔖 |
+| HN 注目 | タイトル, ⬆️, 興味度, カテゴリ, メモ |
+| HN 全件 | `#`, タイトル（日/英）, ⬆️, リンク（HN・元記事） |
+| Reddit 注目 | タイトル, ⬆️, 💬, 興味度, カテゴリ, サブレ, メモ |
+| Reddit カテゴリ別 | `#`, タイトル, ⬆️, 💬, サブレ |
 
-- **このリポジトリの主運用（Cursor Agent）**: 上記 Markdown を **`ideas/daily/YYYY-MM-DD-trend.md` に直接保存**する。
-- **チャットのみでファイルに書けないツール**に合わせる場合のみ、応答先頭を `ネタ収集完了。` とし、続けて ` ```markdown ` フェンスで同じ構造の本文を返す。
+### 表記の細則
 
-## MCP の扱い
-
-- トレンド収集では不要な MCP（例: Linear、Figma）に依存しない。Web 取得は `curl` / 検索ツールを優先する。
+- 注目表のタイトルは **約 40 字以内**の日本語リンクに寄せる
+- HN 全件は **日本語タイトル** と _英題_ を並記、リンク列に HN と元記事
+- セクション間は `---`、カテゴリ列は `` `AI` `` のようにバッククォート
 
 ## 禁止事項
 
-- API キーやトークンをリポジトリや Markdown に書かない
-- 取得できなかった事実を隠してダミー URL や数値を埋めない
-- `ideas/daily/` に `_reddit_cat_block.md` のような **中間用スクラッチファイルを作らない**。整形用の断片はシェルの一時領域（例: `/tmp`）に出すか、**`ideas/daily/YYYY-MM-DD-trend.md` へ直接**書き込む
+- API キー・トークンをリポジトリや Markdown に書かない
+- 取得失敗を隠してダミーの数値・URL を入れない
+- はてなの **複数日アーカイブ**を束ねて「週次・2 週間分」の一覧を作らない
+- `ideas/daily/` に `_reddit_cat_block.md` などの **中間スクラッチ**を置かない（断片は `/tmp` か最終ファイルのみ）
+- リポジトリ内に `.neta-tmp-collect` や `neta-tmp-*` などの **取得キャッシュ用ディレクトリ**を作らない
+
+## MCP
+
+- Linear / Figma など本タスクに不要な MCP に依存しない。Web は `curl` と検索ツールを優先する。
+
+## チャットのみでファイルに書けない場合
+
+- 応答先頭を `ネタ収集完了。` とし、続けて ` ```markdown ` フェンスで **上記と同じ構造**の本文を返す。

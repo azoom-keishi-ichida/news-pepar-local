@@ -1,28 +1,27 @@
 ---
-description: 日次トレンド収集時に参照するルール。トレンド、ネタ収集、daily trend の依頼で使う。
+description: 日次トレンド収集のチェックリスト。トレンド、ネタ収集、daily trend で参照する。
 globs: ideas/daily/**
 alwaysApply: false
 ---
 
-# Daily Trend Collection
+# 日次トレンド収集（ルール）
 
 <!--
-概要: Cursor Agent が日次トレンドを収集し Markdown を書き出すときの最短チェックリスト。
-主な仕様: 保存先パス、収集の優先手段、スキルへの委譲。
-制限事項: 詳細な URL 一覧・表テンプレートは `.agents/skills/neta-trend-daily/SKILL.md` を参照する。
+概要: Agent が日次トレンドを `ideas/daily/` に書き出すときの最短チェックリスト。
+主な仕様: 保存先、取得手段、スキルへの委譲。
+制限事項: URL 一覧・表テンプレの詳細はスキルに譲る。
 -->
 
-## 優先参照
+## 参照の優先順位
 
-- 手順・URL・評価・出力テンプレの**詳細は** `.agents/skills/neta-trend-daily/SKILL.md` に従う。
+1. **詳細（手順・URL・評価・Markdown テンプレ）** — `.agents/skills/neta-trend-daily/SKILL.md`
+2. 本ファイル — 保存先と禁止の再掲のみ
 
-## 概要
+## チェックリスト
 
-- 保存先: `ideas/daily/YYYY-MM-DD-trend.md`（対象日は JST 当日。ユーザー指定があればそれを優先）
-- 取得: まず `curl`、必要なら `WebFetch` を併用
-- 既存ファイルの上書き前にユーザーへ確認する
-
-## 制限事項
-
-- 秘密情報をファイルに書かない
-- 取得失敗は推測で埋めず、スキルに従い末尾注記とする
+- **保存先**: `ideas/daily/YYYY-MM-DD-trend.md`（日付は JST。ユーザー指定があればそれを優先）
+- **データ範囲**: 対象日 **1 日分のスナップショット**（過去多日をマージしない）
+- **取得**: まず `curl`、必要なら `WebFetch`。`curl` の出力は **`/tmp` 等リポジトリ外**（`.neta-tmp-collect` をワークスペース内に作らない）
+- **上書き**: 既存 `*-trend.md` を更新する前にユーザーへ確認
+- **秘密情報**: 成果物に書かない
+- **欠損**: 推測で埋めず、スキルどおり本文末尾に注記

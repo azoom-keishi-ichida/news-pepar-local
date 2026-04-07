@@ -1,6 +1,9 @@
 .env
 .DS_Store
 
+# 日次トレンド収集のキャッシュ（誤って作られた場合も追跡しない）
+.neta-tmp-collect/
+
 # ideas/daily/ ディレクトリは残すが、中身（生成トレンド Markdown 等）は Git の対象外
 ideas/daily/*
 !ideas/daily/.gitkeep
