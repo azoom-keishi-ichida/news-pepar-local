@@ -9,9 +9,6 @@
 
 技術トレンドを日次で集め、**JST 当日のスナップショット**（対象日 1 日分）を `ideas/daily/YYYY-MM-DD-trend.md` に保存するためのローカル用リポジトリです。
 
-## Codex スキル（`.agents/skills`）
-
-- [`.agents/skills/neta-trend-daily/SKILL.md`](.agents/skills/neta-trend-daily/SKILL.md) … 当日スナップショット、収集元 URL、取得・評価ルール、Markdown の章立てと表の列定義
 
 ## Cursor 上のワークフロー（スラッシュコマンド）
 
